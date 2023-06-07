@@ -8,7 +8,12 @@ namespace FacadeService.Providers;
 public class LoggingServiceProvider : ILoggingServiceProvider
 {
     private readonly HttpClient _client = new();
-    private const string Url = "https://localhost:4002/logging-service";
+    private readonly List<string> _urls = new ()
+    {
+        "https://localhost:5101/logging-service",
+        "https://localhost:5102/logging-service",
+        "https://localhost:5103/logging-service",
+    };
 
 
     public async Task CreateLog(LoggingRequest request)
@@ -18,7 +23,9 @@ public class LoggingServiceProvider : ILoggingServiceProvider
             Encoding.UTF8, 
             "application/json");
 
-        var response = await _client.PostAsync(Url, content);
+        var random = new Random();
+
+        var response = await _client.PostAsync(_urls[random.Next(_urls.Count)], content);
         
         if (!response.IsSuccessStatusCode)
         {
@@ -28,8 +35,25 @@ public class LoggingServiceProvider : ILoggingServiceProvider
 
     public async Task<string> GetLogs()
     {
-        var response = await _client.GetAsync(Url);
-        var result = await response.Content.ReadAsStringAsync();
+        var random = new Random();
+        var result = string.Empty;
+
+        var success = false;
+        
+        while (!success)
+        {
+            try
+            {
+                var response = await _client.GetAsync(_urls[random.Next(_urls.Count)]);
+                result = await response.Content.ReadAsStringAsync();
+                success = true;
+            }
+            catch (Exception ex)
+            {
+                success = false;
+            }
+        }
+        
         return result;
     }
 }

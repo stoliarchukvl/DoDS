@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Hazelcast;
 using LoggingService.Models.Logging;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,7 +9,6 @@ namespace LoggingService.Controllers
     [Route("logging-service")]
     public class LoggingController : ControllerBase
     {
-        private static Dictionary<Guid, string> _table = new();
         private readonly ILogger<LoggingController> _logger;
 
         public LoggingController(ILogger<LoggingController> logger)
@@ -17,16 +17,29 @@ namespace LoggingService.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetLogs()
+        public async Task<IActionResult> GetLogs()
         {
-            var response = string.Join(", ", _table.Values);
+            var options = new HazelcastOptionsBuilder().Build();
+            options.ClusterName = "cluster";
+
+            var client = await HazelcastClientFactory.StartNewClientAsync(options);
+            var map = await client.GetMapAsync<string, string>("my-distributed-map");
+
+            var response = string.Join(", ", await map.GetValuesAsync());
             return Ok(response);
         }
 
         [HttpPost]
-        public IActionResult CreateLog([FromBody] LoggingRequest request)
+        public async Task<IActionResult> CreateLog([FromBody] LoggingRequest request)
         {
-            _table.Add(request.Id, request.Message);
+            var options = new HazelcastOptionsBuilder().Build();
+            options.ClusterName = "cluster";
+
+            var client = await HazelcastClientFactory.StartNewClientAsync(options);
+            var map = await client.GetMapAsync<string, string>("my-distributed-map");
+            
+            await map.PutAsync(request.Id.ToString(), request.Message);
+            
             _logger.LogInformation($"Message: {JsonSerializer.Serialize(request)}");
             return Ok();
         }
