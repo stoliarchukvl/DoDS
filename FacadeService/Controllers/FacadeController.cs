@@ -1,5 +1,7 @@
+using System.Text.Json;
 using FacadeService.Abstractions.Providers;
 using FacadeService.Contracts.Logging;
+using Hazelcast;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FacadeService.Controllers
@@ -36,6 +38,16 @@ namespace FacadeService.Controllers
         {
             var loggingRequest = new LoggingRequest(Guid.NewGuid(), message);
             await _loggingServiceProvider.CreateLog(loggingRequest);
+
+            var options = new HazelcastOptionsBuilder().Build();
+            options.ClusterName = "cluster";
+
+            var client = await HazelcastClientFactory.StartNewClientAsync(options);
+
+            var queue = await client.GetQueueAsync<string>("queue");
+
+            await queue.PutAsync(JsonSerializer.Serialize(loggingRequest));
+
             return Ok();
         }
     }

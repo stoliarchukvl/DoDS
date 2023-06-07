@@ -5,11 +5,16 @@ namespace FacadeService.Providers;
 public class MessagesServiceProvider : IMessagesServiceProvider
 {
     private readonly HttpClient _client = new();
-    private const string Url = "https://localhost:4003/messages-service";
+    private readonly List<string> _urls = new()
+    {
+        "https://localhost:6101/messages-service",
+        "https://localhost:6102/messages-service",
+    };
 
     public async Task<string> Get()
     {
-        var response = await _client.GetAsync(Url);
+        var random = new Random();
+        var response = await _client.GetAsync(_urls[random.Next(_urls.Count)]);
         var result = await response.Content.ReadAsStringAsync();
         return result;
     }
