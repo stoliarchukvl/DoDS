@@ -7,12 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Consul" Version="1.6.10.9" />
     <PackageReference Include="Hazelcast.Net" Version="5.2.2" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.2.3" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Models\Logging\" />
+    <Folder Include="Consul\" />
   </ItemGroup>
 
 </Project>

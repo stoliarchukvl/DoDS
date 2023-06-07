@@ -1,4 +1,6 @@
+using System.Text;
 using System.Text.Json;
+using Consul;
 using Hazelcast;
 using MessagesService.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -11,10 +13,12 @@ namespace MessagesService.Controllers
     {
         private static Dictionary<Guid, string> _table = new();
         private readonly ILogger<MessagesController> _logger;
+        private readonly IConsulClient _consulClient;
 
-        public MessagesController(ILogger<MessagesController> logger)
+        public MessagesController(ILogger<MessagesController> logger, IConsulClient consulClient)
         {
             _logger = logger;
+            _consulClient = consulClient;
         }
 
         [HttpGet]
@@ -32,14 +36,24 @@ namespace MessagesService.Controllers
             return Ok();
         }
 
+        [HttpGet("health")]
+        public IActionResult Health()
+        {
+            return Ok();
+        }
+
         private async Task RunConsume()
         {
+            var data = await _consulClient.KV.Get("hazelcast_queue");
+
+            var hzQueue = Encoding.UTF8.GetString(data.Response.Value).Replace("\"", string.Empty);
+
             var options = new HazelcastOptionsBuilder().Build();
             options.ClusterName = "cluster";
 
             var client = await HazelcastClientFactory.StartNewClientAsync(options);
 
-            var queue = await client.GetQueueAsync<string>("queue");
+            var queue = await client.GetQueueAsync<string>(hzQueue);
 
             while (true)
             {

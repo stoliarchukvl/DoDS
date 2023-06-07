@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json;
+using Consul;
 using FacadeService.Abstractions.Providers;
 using FacadeService.Contracts.Logging;
 
@@ -7,13 +8,14 @@ namespace FacadeService.Providers;
 
 public class LoggingServiceProvider : ILoggingServiceProvider
 {
+    private readonly IConsulClient _consulClient;
     private readonly HttpClient _client = new();
-    private readonly List<string> _urls = new ()
+    private const string ServiceName = "LoggingService";
+
+    public LoggingServiceProvider(IConsulClient consulClient)
     {
-        "https://localhost:5101/logging-service",
-        "https://localhost:5102/logging-service",
-        "https://localhost:5103/logging-service",
-    };
+        _consulClient = consulClient;
+    }
 
 
     public async Task CreateLog(LoggingRequest request)
@@ -25,7 +27,7 @@ public class LoggingServiceProvider : ILoggingServiceProvider
 
         var random = new Random();
 
-        var response = await _client.PostAsync(_urls[random.Next(_urls.Count)], content);
+        var response = await _client.PostAsync(await GetServiceUrl(), content);
         
         if (!response.IsSuccessStatusCode)
         {
@@ -35,7 +37,6 @@ public class LoggingServiceProvider : ILoggingServiceProvider
 
     public async Task<string> GetLogs()
     {
-        var random = new Random();
         var result = string.Empty;
 
         var success = false;
@@ -44,7 +45,7 @@ public class LoggingServiceProvider : ILoggingServiceProvider
         {
             try
             {
-                var response = await _client.GetAsync(_urls[random.Next(_urls.Count)]);
+                var response = await _client.GetAsync(await GetServiceUrl());
                 result = await response.Content.ReadAsStringAsync();
                 success = true;
             }
@@ -55,5 +56,21 @@ public class LoggingServiceProvider : ILoggingServiceProvider
         }
         
         return result;
+    }
+
+    private async Task<string> GetServiceUrl()
+    {
+        var services = await _consulClient.Catalog.Service(ServiceName);
+        var listOfServices = new List<string>();
+        foreach (var element in services.Response)
+        {
+            var address = element.Address;
+            var port = element.ServicePort;
+            listOfServices.Add(address + ":" + port);
+        }
+
+        var random = new Random();
+
+        return "https://" + listOfServices[random.Next(listOfServices.Count)] + "/" + "logging-service";
     }
 }
